@@ -708,8 +708,8 @@ contract StealingHeartsRaffle is TNT721 {
         uri = _uri;
     }
 
-    uint256 public nftPrice = 10000000000000000000;  //10 TFuel
-    uint256 public expirationDate = block.timestamp + 300; 
+    uint256 public nftPrice = 50000000000000000000;  //50 TFuel
+    uint256 public expirationDate = 1671692400; //10 minutes 
 
     function changePrice(uint256 _nftPrice) public {
         require(msg.sender == admin, "You are not allowed to do that.");
@@ -725,7 +725,6 @@ contract StealingHeartsRaffle is TNT721 {
     //function to send out winner after certain timestamp
 
     
-
     constructor (string memory name, string memory symbol, string memory _uri) public TNT721(name, symbol) { 
         admin = msg.sender;
         uri = _uri;
@@ -735,18 +734,19 @@ contract StealingHeartsRaffle is TNT721 {
     }
 
     function mintTo() public payable{
-        uint mintIndex = totalSupply();
+        
         require(block.timestamp <= expirationDate, "Contest is now over");
 
         if(msg.sender != admin){
-            require(msg.value == nftPrice, "Not enough TFuel Sent");
+            require(msg.value >= nftPrice, "Not enough TFuel Sent");
         }
+        uint mintIndex = totalSupply();
         _safeMint(msg.sender, mintIndex);
         _setTokenURI(mintIndex, uri);
     }
 
 
-    //Emergency Claim Function
+    //Emergency Claim Function //Also useful for collecting other half of contract
     function sendBalance() public {
         require(msg.sender == admin, "You are not allowed to do that.");
         uint balance = address(this).balance;
@@ -756,8 +756,7 @@ contract StealingHeartsRaffle is TNT721 {
 
 
     //Function to chose random number
-    function selectRandomNumber(uint _modulus) public view returns(uint256) {
-        require(msg.sender == admin, "You are not allowed to do that.");
+    function _selectRandomNumber(uint _modulus) internal view returns(uint256) {
         uint randNonce = 0;
         randNonce++; 
         return uint(keccak256(abi.encodePacked(now, msg.sender, randNonce))) % _modulus;
@@ -766,15 +765,16 @@ contract StealingHeartsRaffle is TNT721 {
     //function to chose winner
     function selectWinner() public view returns(address){
         require(msg.sender == admin, "You are not allowed to do that.");
+        require(block.timestamp > expirationDate, "Contest has not expired yet");
         //add in expiration line here
         uint256 ts = totalSupply();
-        uint256 winnerIndex = selectRandomNumber(ts); 
+        uint256 winnerIndex = _selectRandomNumber(ts); 
         address chosenWinner = ownerOf(winnerIndex);
         return chosenWinner;
     }
 
 
-    //emergency function to change URI of NFT Send the Winner The balance
+
     //Would manually call functions separatley
     function sendWinner(address winner) public {
         require(msg.sender == admin, "You are not allowed to do that.");
@@ -784,6 +784,7 @@ contract StealingHeartsRaffle is TNT721 {
         (bool success, ) = winner.call{value: halfBalance} (" ");
         require(success, "Transfer failed.");
     }
+
 
     //emergency function to change URI of NFT
     function setNFTURI(uint256 tokenMintIndex) public {
